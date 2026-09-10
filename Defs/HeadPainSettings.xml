@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Defs>
+
+  <HeadPainBoost.HeadPainSettingsDef>
+    <defName>HeadPainBoost_Settings</defName>
+    <partMultipliers>
+      <li>
+        <bodyPart>Head</bodyPart>
+        <multiplier>1.5</multiplier>
+      </li>
+      <li>
+        <bodyPart>Skull</bodyPart>
+        <multiplier>1.5</multiplier>
+      </li>
+    </partMultipliers>
+  </HeadPainBoost.HeadPainSettingsDef>
+
+</Defs>

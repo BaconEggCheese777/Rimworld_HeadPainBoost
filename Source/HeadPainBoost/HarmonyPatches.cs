@@ -1,0 +1,67 @@
+using System.Collections.Generic;
+using HarmonyLib;
+using Verse;
+
+namespace HeadPainBoost
+{
+    [StaticConstructorOnStartup]
+    public static class HeadPainBoostInit
+    {
+        static HeadPainBoostInit()
+        {
+            var harmony = new Harmony("yourname.headpainboost");
+            harmony.PatchAll();
+
+            var settings = HeadPainBoostDefOf.HeadPainBoost_Settings;
+            if (settings?.partMultipliers != null)
+            {
+                foreach (var entry in settings.partMultipliers)
+                {
+                    Log.Message("[Head Pain Boost] " + entry.bodyPart + " pain x" + entry.multiplier);
+                }
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(Hediff), nameof(Hediff.PainOffset), MethodType.Getter)]
+    public static class Patch_Hediff_PainOffset_HeadBoost
+    {
+        // Cached lookup built once from the Def's list, keyed by BodyPartDef defName.
+        private static Dictionary<string, float> multipliersByPart;
+
+        private static Dictionary<string, float> MultipliersByPart
+        {
+            get
+            {
+                if (multipliersByPart == null)
+                {
+                    multipliersByPart = new Dictionary<string, float>();
+                    var settings = HeadPainBoostDefOf.HeadPainBoost_Settings;
+                    if (settings?.partMultipliers != null)
+                    {
+                        foreach (var entry in settings.partMultipliers)
+                        {
+                            if (!string.IsNullOrEmpty(entry.bodyPart))
+                                multipliersByPart[entry.bodyPart] = entry.multiplier;
+                        }
+                    }
+                }
+                return multipliersByPart;
+            }
+        }
+
+        public static void Postfix(Hediff __instance, ref float __result)
+        {
+            if (__result <= 0f)
+                return;
+
+            if (__instance.Part == null)
+                return;
+
+            if (MultipliersByPart.TryGetValue(__instance.Part.def.defName, out float multiplier))
+            {
+                __result *= multiplier;
+            }
+        }
+    }
+}

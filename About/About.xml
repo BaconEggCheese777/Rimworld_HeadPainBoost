@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+  <name>Head Pain Boost</name>
+  <author>YourName</author>
+  <packageId>yourname.headpainboost</packageId>
+  <description>Makes injuries on the head hurt more than the same injury elsewhere on the body. The multiplier (and which body part it applies to) is set via an XML Def, no recompiling needed to retune it.</description>
+  <supportedVersions>
+    <li>1.5</li>
+    <li>1.6</li>
+  </supportedVersions>
+  <modDependencies>
+    <li>
+      <packageId>brrainz.harmony</packageId>
+      <displayName>Harmony</displayName>
+      <downloadUrl>https://steamcommunity.com/workshop/filedetails/?id=2009463077</downloadUrl>
+    </li>
+  </modDependencies>
+  <loadAfter>
+    <li>brrainz.harmony</li>
+  </loadAfter>
+</ModMetaData>
