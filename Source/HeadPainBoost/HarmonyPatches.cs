@@ -23,15 +23,12 @@ namespace HeadPainBoost
         }
     }
 
-    // Patched here instead of Hediff.PainOffset: Hediff_Injury (the class
-    // used for ordinary wounds - cuts, gunshots, burns, etc.) computes its
-    // own pain internally and doesn't route through the base Hediff
-    // getter, so patching that getter never actually fired for real
-    // injuries. HediffSet.PainTotal is the single point where every
-    // hediff's pain contribution gets summed, regardless of which
-    // subclass it is, so patching here catches all of them uniformly.
-    [HarmonyPatch(typeof(HediffSet), nameof(HediffSet.PainTotal), MethodType.Getter)]
-    public static class Patch_HediffSet_PainTotal_HeadBoost
+    // Patching PainOffset directly (rather than the HediffSet.PainTotal
+    // aggregate) means BOTH the per-injury tooltip and the pawn's total
+    // pain read the same boosted number, since PainTotal is just a sum
+    // of each hediff's PainOffset.
+    [HarmonyPatch(typeof(Hediff), nameof(Hediff.PainOffset), MethodType.Getter)]
+    public static class Patch_Hediff_PainOffset_HeadBoost
     {
         private static Dictionary<string, float> multipliersByPart;
 
@@ -56,32 +53,17 @@ namespace HeadPainBoost
             }
         }
 
-        public static void Postfix(HediffSet __instance, ref float __result)
+        public static void Postfix(Hediff __instance, ref float __result)
         {
-            if (MultipliersByPart.Count == 0)
+            if (__result <= 0f)
                 return;
 
-            float extra = 0f;
-            List<Hediff> hediffs = __instance.hediffs;
-            for (int i = 0; i < hediffs.Count; i++)
-            {
-                Hediff hediff = hediffs[i];
-                if (hediff.Part == null)
-                    continue;
+            if (__instance.Part == null)
+                return;
 
-                if (MultipliersByPart.TryGetValue(hediff.Part.def.defName, out float multiplier))
-                {
-                    float basePain = hediff.PainOffset;
-                    if (basePain > 0f)
-                    {
-                        extra += basePain * (multiplier - 1f);
-                    }
-                }
-            }
-
-            if (extra != 0f)
+            if (MultipliersByPart.TryGetValue(__instance.Part.def.defName, out float multiplier))
             {
-                __result += extra;
+                __result *= multiplier;
             }
         }
     }
