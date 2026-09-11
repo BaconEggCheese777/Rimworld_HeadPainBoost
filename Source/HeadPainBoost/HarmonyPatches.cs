@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using HarmonyLib;
 using Verse;
 
@@ -10,7 +12,54 @@ namespace HeadPainBoost
         static HeadPainBoostInit()
         {
             var harmony = new Harmony("yourname.headpainboost");
-            harmony.PatchAll();
+
+            var postfix = new HarmonyMethod(
+                typeof(PainOffsetPostfix),
+                nameof(PainOffsetPostfix.Postfix));
+
+            int patchedCount = 0;
+            var seenMethods = new HashSet<MethodInfo>();
+
+            // Scan every loaded type derived from Hediff and patch every
+            // getter that specific type declares for "PainOffset" - not
+            // just the one on the base Hediff class. Different hediff
+            // subclasses (e.g. the class used for ordinary wounds) can
+            // each provide their own override, and Harmony only
+            // intercepts calls that actually dispatch to a patched
+            // method, so we patch all of them rather than guess which
+            // one is in play at runtime.
+            foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                Type[] types;
+                try
+                {
+                    types = assembly.GetTypes();
+                }
+                catch (ReflectionTypeLoadException ex)
+                {
+                    types = Array.FindAll(ex.Types, t => t != null);
+                }
+
+                foreach (Type type in types)
+                {
+                    if (!typeof(Hediff).IsAssignableFrom(type))
+                        continue;
+
+                    PropertyInfo prop = type.GetProperty(
+                        "PainOffset",
+                        BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
+                    if (prop == null)
+                        continue;
+
+                    MethodInfo getter = prop.GetGetMethod(true);
+                    if (getter == null || !seenMethods.Add(getter))
+                        continue;
+
+                    harmony.Patch(getter, postfix: postfix);
+                    patchedCount++;
+                }
+            }
 
             var settings = HeadPainBoostDefOf.HeadPainBoost_Settings;
             if (settings?.partMultipliers != null)
@@ -20,15 +69,11 @@ namespace HeadPainBoost
                     Log.Message("[Head Pain Boost] " + entry.bodyPart + " pain x" + entry.multiplier);
                 }
             }
+            Log.Message("[Head Pain Boost] Patched " + patchedCount + " PainOffset getter(s).");
         }
     }
 
-    // Patching PainOffset directly (rather than the HediffSet.PainTotal
-    // aggregate) means BOTH the per-injury tooltip and the pawn's total
-    // pain read the same boosted number, since PainTotal is just a sum
-    // of each hediff's PainOffset.
-    [HarmonyPatch(typeof(Hediff), nameof(Hediff.PainOffset), MethodType.Getter)]
-    public static class Patch_Hediff_PainOffset_HeadBoost
+    public static class PainOffsetPostfix
     {
         private static Dictionary<string, float> multipliersByPart;
 
